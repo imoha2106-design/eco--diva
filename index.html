@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoCity | Умная экологическая панель</title>
+    <meta name="description"
+        content="Комплексное приложение умного эко-города: ИКВ, ИИ-анализ трендов, инструменты активного горожанина, эко-сообщество и умная инфраструктура.">
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0f172a">
+    <link rel="apple-touch-icon" href="image_abcf02.jpg">
+    <!-- Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Leaflet Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <!-- Firebase App (the core Firebase SDK) is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Auth Modal Overlay -->
+    <div id="auth-overlay" style="
+        position: fixed; inset: 0; z-index: 9999;
+        background: #0f172a;
+        display: flex; align-items: center; justify-content: center;
+        font-family: 'Outfit', sans-serif;
+    ">
+        <div style="width: 100%; max-width: 440px; padding: 0 24px;">
+            <!-- Logo -->
+            <div style="text-align: center; margin-bottom: 40px;">
+                <div
+                    style="width:72px;height:72px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:rgba(16,185,129,0.15);border-radius:20px;">
+                    <i class="ph-fill ph-leaf" style="color:#10b981;font-size:36px;"></i>
+                </div>
+                <h1 style="font-size:32px;font-weight:800;margin:0;color:#f8fafc;">EcoCity</h1>
+                <p style="color:#94a3b8;margin-top:8px;">Присоединяйтесь к умному экологическому сообществу</p>
+            </div>
+
+            <!-- Auth Card -->
+            <div
+                style="background:rgba(30,41,59,0.6);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:20px;padding:36px;">
+                <!-- Error / Success messages -->
+                <div id="auth-msg-error"
+                    style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;color:#ef4444;font-size:14px;margin-bottom:16px;text-align:center;">
+                </div>
+                <div id="auth-msg-success"
+                    style="display:none;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px 16px;color:#10b981;font-size:14px;margin-bottom:16px;text-align:center;">
+                </div>
+
+                <!-- LOGIN Container -->
+                <div id="login-container">
+                    <h2 style="color:#f8fafc;font-size:22px;font-weight:700;margin:0 0 24px;text-align:center;">Welcome
+                        Back</h2>
+                    <form onsubmit="handleInlineLogin(event)">
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;"><i
+                                    class="ph ph-envelope-simple"></i> Email</label>
+                            <input type="email" id="login-email" placeholder="your@email.com" required
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:15px;box-sizing:border-box;transition:border-color 0.3s;">
+                        </div>
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;"><i
+                                    class="ph ph-lock-simple"></i> Пароль</label>
+                            <input type="password" id="login-password" placeholder="••••••••" required
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:15px;box-sizing:border-box;transition:border-color 0.3s;">
+                        </div>
+                        <button type="submit"
+                            style="width:100%;padding:16px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:14px;color:white;font-family:'Outfit';font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;"><i
+                                class="ph-bold ph-sign-in"></i> Войти</button>
+                    </form>
+                    <p style="text-align:center;color:#94a3b8;margin-top:20px;font-size:14px;">
+                        Нет аккаунта? <a href="#" onclick="toggleAuthMode('signup'); return false;"
+                            style="color:#10b981;font-weight:600;text-decoration:none;">Создать аккаунт</a>
+                    </p>
+                </div>
+
+                <!-- SIGNUP Container -->
+                <div id="signup-container" style="display:none;">
+                    <h2 style="color:#f8fafc;font-size:22px;font-weight:700;margin:0 0 24px;text-align:center;">Create
+                        Eco-Passport</h2>
+                    <form id="auth-signup-form" onsubmit="handleInitialSignup(event)">
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;"><i
+                                    class="ph ph-user"></i> Полное имя</label>
+                            <input type="text" id="signup-name" placeholder="Ваше Имя" required
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:15px;box-sizing:border-box;transition:border-color 0.3s;">
+                        </div>
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;"><i
+                                    class="ph ph-envelope-simple"></i> Email</label>
+                            <input type="email" id="signup-email" placeholder="your@email.com" required
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:15px;box-sizing:border-box;transition:border-color 0.3s;">
+                        </div>
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;"><i
+                                    class="ph ph-lock-simple"></i> Пароль</label>
+                            <input type="password" id="signup-password" placeholder="Мин 6 символов" required
+                                minlength="6"
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:15px;box-sizing:border-box;transition:border-color 0.3s;">
+                        </div>
+                        <button id="btn-signup-submit" type="submit"
+                            style="width:100%;padding:16px;background:linear-gradient(135deg,#10b981,#059669);border:none;border-radius:14px;color:white;font-family:'Outfit';font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;"><i
+                                class="ph-bold ph-user-plus"></i> Войти</button>
+                    </form>
+
+                    <form id="auth-verify-form" onsubmit="handleVerifyCode(event)" style="display: none;">
+                        <p style="color:#94a3b8; margin-bottom: 20px; font-size:14px; text-align:center;">Мы отправили
+                            6-значный код на ваш email. Введите его ниже.</p>
+                        <div style="margin-bottom:20px;">
+                            <label
+                                style="display:block;color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:8px;text-align:center;">Verification
+                                Code</label>
+                            <input type="text" id="verify-code" placeholder="------" maxlength="6" required
+                                style="width:100%;padding:14px 16px;background:rgba(15,23,42,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:12px;color:#f8fafc;font-family:'Outfit';font-size:24px;box-sizing:border-box;transition:border-color 0.3s;text-align:center;letter-spacing:8px;">
+                        </div>
+                        <button id="btn-verify-submit" type="submit"
+                            style="width:100%;padding:16px;background:linear-gradient(135deg,#3b82f6,#2563eb);border:none;border-radius:14px;color:white;font-family:'Outfit';font-size:16px;font-weight:700;cursor:pointer;transition:all 0.3s;">
+                            Подтвердить и Создать Аккаунт
+                        </button>
+                    </form>
+
+                    <p style="text-align:center;color:#94a3b8;margin-top:20px;font-size:14px;">
+                        Уже есть аккаунт? <a href="#" onclick="toggleAuthMode('login'); return false;"
+                            style="color:#10b981;font-weight:600;text-decoration:none;">Войти</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline Auth Script Removed. Logic moved to script.js with Firebase -->
+
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon-wrapper">
+                    <i class="ph-fill ph-leaf logo-icon"></i>
+                </div>
+                <span>EcoCity</span>
+            </div>
+
+            <nav class="nav-menu">
+                <p class="nav-section-title">Мониторинг и анализ</p>
+                <a href="#" class="nav-item active" onclick="showSection('dashboard')"><i
+                        class="ph ph-squares-four"></i> Real-time Dashboard</a>
+                <a href="#" class="nav-item" onclick="showSection('heatmap')"><i class="ph ph-map-trifold"></i>
+                    Eco-Sim Heatmap</a>
+                <a href="#" class="nav-item" onclick="showSection('trends')"><i class="ph ph-trend-up"></i> AI
+                    Trend Analysis</a>
+
+                <p class="nav-section-title">Активный горожанин</p>
+                <a href="#" class="nav-item" onclick="showSection('reports')"><i class="ph ph-camera-plus"></i>
+                    Report Нарушение</a>
+                <a href="#" class="nav-item" onclick="showSection('route')"><i class="ph ph-person-simple-walk"></i>
+                    Green Route</a>
+                <a href="#" class="nav-item" onclick="showSection('ar')"><i class="ph ph-goggles-ar"></i> AR
+                    Street View</a>
+
+                <p class="nav-section-title">Сообщество и инфраструктура</p>
+                <a href="#" class="nav-item" onclick="showSection('passport')"><i class="ph ph-medal"></i>
+                    Eco-Passport</a>
+                <a href="#" class="nav-item" onclick="showSection('bins')"><i class="ph ph-trash"></i> Smart
+                    Bins</a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="user-profile">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=EcoUser&backgroundColor=b6e3f4"
+                        alt="User Avatar" class="avatar user-avatar">
+                    <div class="user-info">
+                        <span class="current-user-name">Пользователь</span>
+                        <span class="user-badge"><i class="ph-fill ph-medal"></i> Eco-Citizen</span>
+                    </div>
+                </div>
+                <a href="#" id="btn-logout" class="nav-item" style="margin-top: 12px; color: #ef4444; font-size: 13px;">
+                    <i class="ph ph-sign-out"></i> Logout
+                </a>
+            </div>
+        </aside>
+
+        <!-- Main Dashboard Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="top-header">
+                <div class="welcome-text">
+                    <h1>С возвращением, <span class="current-user-name">Пользователь</span> 👋</h1>
+                    <p>Вот что происходит в вашем городе сегодня.</p>
+                </div>
+
+                <div class="header-right">
+                    <div class="search-bar">
+                        <i class="ph ph-magnifying-glass"></i>
+                        <input type="text" placeholder="Поиск районов, отчетов или датчиков...">
+                    </div>
+                    <div class="header-actions">
+                        <button id="btn-install-pwa" class="icon-btn tooltip" data-tip="Install App"
+                            style="display: none;">
+                            <i class="ph ph-download-simple"></i>
+                        </button>
+                        <button class="icon-btn warning contains-dot" aria-label="Notifications">
+                            <i class="ph ph-bell"></i>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- 1. Dashboard Section -->
+            <section id="dashboard" class="section active">
+                <div class="dashboard-grid">
+
+                    <!-- 1. AQI Dashboard Widget -->
+                    <div class="card col-span-2 aqi-card">
+                        <div class="card-glow green-glow"></div>
+                        <div class="card-header">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-wind text-green"></i>
+                                <h3>Индекс качества воздуха</h3>
+                            </div>
+                            <span class="status-badge safe">Безопасный режим</span>
+                        </div>
+
+                        <div class="aqi-display">
+                            <div class="aqi-circle-container">
+                                <div class="aqi-circle">
+                                    <svg viewBox="0 0 36 36" id="aqi-circle-chart" class="circular-chart green">
+                                        <path class="circle-bg" stroke-dasharray="100, 100"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                        <path id="aqi-circle-fill" class="circle current-aqi" stroke-dasharray="25, 100"
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    </svg>
+                                    <div class="aqi-value">
+                                        <span id="aqi-number" class="number">--</span>
+                                        <span class="label">AQI</span>
+                                    </div>
+                                </div>
+                                <div class="pulse-ring"></div>
+                            </div>
+
+                            <div class="aqi-details">
+                                <h4 id="aqi-status-text" class="aqi-status-text">Загрузка...</h4>
+                                <p id="aqi-status-desc">Загрузка данных о качестве воздуха в реальном времени для
+                                    Петропавловска...</p>
+
+                                <div class="aqi-metrics">
+                                    <div class="metric">
+                                        <span class="metric-label">PM10</span>
+                                        <span id="aqi-val-pm10" class="metric-value">-- <small>µg/m³</small></span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">NO2</span>
+                                        <span id="aqi-val-no2" class="metric-value">-- <small>µg/m³</small></span>
+                                    </div>
+                                    <div class="metric">
+                                        <span class="metric-label">O3</span>
+                                        <span id="aqi-val-o3" class="metric-value">-- <small>µg/m³</small></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2. AI Trend Analysis Widget -->
+                    <div class="card col-span-2 ai-card">
+                        <div class="card-glow blue-glow"></div>
+                        <div class="card-header">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-brain text-blue"></i>
+                                <h3>ИИ-прогнозы чистоты воздуха</h3>
+                            </div>
+                            <div class="tabs">
+                                <button class="tab active">Прогноз на 24 часа</button>
+                                <button class="tab">На 7 дней</button>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="aqiChart"></canvas>
+                        </div>
+                        <div class="ai-insight">
+                            <i class="ph-fill ph-sparkle"></i>
+                            <span><strong>AI Insight:</strong> Загрязнение увеличится на 15% в час пик
+                                (17:00-19:00).</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. Smart Alerts ("Black Day" & Infra) -->
+                    <div class="card col-span-2 alerts-card">
+                        <div class="card-glow red-glow"></div>
+                        <div class="card-header">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-warning-circle text-orange"></i>
+                                <h3>Системные уведомления</h3>
+                            </div>
+                        </div>
+                        <div class="alerts-list">
+                            <!-- Dynamic alerts populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- 4. Eco-Community Gamification -->
+                    <div class="card col-span-2 eco-card">
+                        <div class="card-glow green-glow"></div>
+                        <div class="card-header">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-plant text-green"></i>
+                                <h3>Эко-Паспорт</h3>
+                            </div>
+                            <button class="btn-text" id="btn-leaderboard">Таблица лидеров</button>
+                        </div>
+
+                        <div class="stats-row">
+                            <div class="stat-box">
+                                <i class="ph-fill ph-cloud-slash text-blue"></i>
+                                <div class="stat-info">
+                                    <span class="stat-value"><span id="dash-co2">0</span> <small>kg</small></span>
+                                    <span class="stat-label">Сэкономлено CO₂</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="ph-fill ph-recycle text-green"></i>
+                                <div class="stat-info">
+                                    <span class="stat-value"><span id="dash-reна велосипеде">0</span>
+                                        <small>kg</small></span>
+                                    <span class="stat-label">Переработано</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="achievements">
+                            <div class="badges">
+                                <div class="badge-icon locked tooltip" id="dash-badge-sorting"
+                                    data-tip="Мастер сортировки"><i class="ph-fill ph-trash"></i>
+                                </div>
+                                <div class="badge-icon locked tooltip" id="dash-badge-velo" data-tip="Вело-Ниндзя"><i
+                                        class="ph-fill ph-bicycle"></i></div>
+                                <div class="badge-icon locked tooltip" id="dash-badge-patrol" data-tip="Эко-Патруль"><i
+                                        class="ph-fill ph-shield-check"></i></div>
+                            </div>
+
+                            <div class="progress-container">
+                                <div class="progress-details">
+                                    <span class="next-rank">Next: <strong>Эко-Патруль</strong></span>
+                                    <span class="progress-pct">80%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill gradient-green" style="width: 80%"></div>
+                                </div>
+                                <p class="reward-hint">Скидка 10% на транспорт при 100%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+            <!-- END dashboard -->
+
+            <!-- END Modals Removed (were cluttering UI) -->
+            <!-- 2. Eco-Sim Heatmap Section -->
+            <section id="heatmap" class="section">
+                <div class="dashboard-grid" style="grid-template-columns: 1fr; gap: 24px;">
+
+                    <!-- Simulation Controls -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-grid-four text-green"></i>
+                                <h3>Анализ загрязнения территории</h3>
+                            </div>
+                        </div>
+
+                        <!-- Stats Row -->
+                        <div class="stats-row" style="margin-bottom: 24px;">
+                            <div class="stat-box">
+                                <i class="ph-fill ph-wind text-blue"></i>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="sim-avg-v">50 <small>AQI</small></span>
+                                    <span class="stat-label">Среднее по территории (V̄)</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="ph-fill ph-tree text-green"></i>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="tree-count">0</span>
+                                    <span class="stat-label">Посажено деревьев</span>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <i class="ph-fill ph-factory text-orange"></i>
+                                <div class="stat-info">
+                                    <span class="stat-value" id="factory-count">0</span>
+                                    <span class="stat-label">Построено фабрик</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Alert -->
+                        <div id="sim-alert-main" class="sim-alert" style="display: none; margin-bottom: 16px;">
+                            <i class="ph-fill ph-warning-circle"></i>
+                            <span>⚠️ Критическое состояние! ИКВ превышает безопасный порог.</span>
+                        </div>
+
+                        <!-- Toolbar -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+                            <button class="sim-tool-btn active" data-tool="tree" onclick="selectSimTool(this, 'tree')">
+                                <i class="ph-fill ph-tree text-green"></i>
+                                <span>Посадить дерево</span>
+                            </button>
+                            <button class="sim-tool-btn" data-tool="factory" onclick="selectSimTool(this, 'factory')">
+                                <i class="ph-fill ph-factory text-orange"></i>
+                                <span>Построить фабрику</span>
+                            </button>
+                            <button class="btn-clear-sim" onclick="resetSimGrid()" style="margin-left: auto;">
+                                <i class="ph-bold ph-arrows-counter-clockwise"></i> Reset Simulation
+                            </button>
+                        </div>
+
+                        <!-- 10x10 Grid -->
+                        <div id="sim-grid-main" class="eco-sim-grid"
+                            style="display: grid; grid-template-columns: repeat(10, 1fr); grid-template-rows: repeat(10, 1fr); gap: 3px; aspect-ratio: 1; max-width: 700px; border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden; padding: 8px; background: var(--bg-card);">
+                            <!-- JS generated 10x10 grid -->
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
+            <!-- 3. AI Trend Analysis Section -->
+            <section id="trends" class="section">
+                <div class="dashboard-grid" style="grid-template-columns: 2fr 1fr; gap: 24px;">
+
+                    <!-- Chart Card -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-glow blue-glow"></div>
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-chart-line-up text-blue"></i>
+                                <h3>Прогноз тренда PM2.5</h3>
+                            </div>
+                            <div class="tabs">
+                                <button class="tab active">Прогноз на 24 часа</button>
+                                <button class="tab">На 7 дней</button>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="position: relative; height: 380px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- AI Insights Panel -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-glow green-glow"></div>
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-sparkle text-green"></i>
+                                <h3>ИИ-прогнозы</h3>
+                            </div>
+                        </div>
+
+                        <div id="ai-insights">
+                            <div class="alert-item safe"
+                                style="margin-bottom: 12px; padding: 16px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15); border-radius: 12px;">
+                                <div class="alert-icon"><i class="ph-fill ph-sun text-green"></i></div>
+                                <div class="alert-content">
+                                    <h4>Окно чистоты: Завтра 6-9 утра</h4>
+                                    <p>PM2.5 упадет до 18 мкг/м³ из-за ночного дождя. Идеально
+                                        для утренней пробежки.</p>
+                                </div>
+                            </div>
+
+                            <div class="alert-item hazard"
+                                style="margin-bottom: 12px; padding: 16px; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.15); border-radius: 12px;">
+                                <div class="alert-icon"><i class="ph-fill ph-warning-circle text-red"></i></div>
+                                <div class="alert-content">
+                                    <h4>Риск «Черного неба»: Четверг</h4>
+                                    <p>Прогнозируется перемена ветра. PM2.5 может достичь 120 мкг/м³. Рекомендуются
+                                        маски
+                                        с 14:00.</p>
+                                </div>
+                            </div>
+
+                            <div class="alert-item info"
+                                style="margin-bottom: 12px; padding: 16px; background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15); border-radius: 12px;">
+                                <div class="alert-icon"><i class="ph-fill ph-trend-down text-blue"></i></div>
+                                <div class="alert-content">
+                                    <h4>Недельный тренд: -20% PM2.5</h4>
+                                    <p>ИИ прогнозирует значительное снижение в середине недели из-за дождей и
+                                        снижения
+                                        трафика.</p>
+                                </div>
+                            </div>
+
+                            <div class="alert-item safe"
+                                style="padding: 16px; background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15); border-radius: 12px;">
+                                <div class="alert-icon"><i class="ph-fill ph-leaf text-green"></i></div>
+                                <div class="alert-content">
+                                    <h4>Парковая зона: Безопасно</h4>
+                                    <p>Центральный парк сохраняет ИКВ ниже 35. Ежедневно рекомендуется Зеленый маршрут
+                                        через
+                                        парк.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. Active Citizen: Report Нарушение Section -->
+            <section id="reports" class="section">
+                <div class="dashboard-grid" style="grid-template-columns: 1fr 1fr; gap: 24px;">
+
+                    <!-- Photo Capture Card -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-camera-plus text-blue"></i>
+                                <h3>Сделать фото нарушения</h3>
+                            </div>
+                        </div>
+                        <input type="file" id="report-photo" accept="image/*" style="display: none;"
+                            onchange="handlePhotoSelect(event)">
+                        <div id="camera-area" onclick="document.getElementById('report-photo').click()" style="
+                                    height: 300px;
+                                    background: rgba(59,130,246,0.05);
+                                    border: 2px dashed rgba(59,130,246,0.3);
+                                    border-radius: 16px;
+                                    display: flex;
+                                    flex-direction: column;
+                                    align-items: center;
+                                    justify-content: center;
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                    position: relative;
+                                    overflow: hidden;
+                                ">
+                            <div id="camera-placeholder"
+                                style="display: flex; flex-direction: column; align-items: center;">
+                                <i class="ph ph-camera-plus" style="font-size: 56px; color: #64748b;"></i>
+                                <p style="color: #64748b; margin-top: 16px; font-size: 16px;">Click to upload photo
+                                </p>
+                                <small style="color: #475569;">ИИ классифицирует: мусор, дым или дороги
+                                    нарушение</small>
+                            </div>
+                            <img id="photo-preview" src=""
+                                style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; inset: 0;">
+                        </div>
+                    </div>
+
+                    <!-- Report Form Card -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-note-pencil text-green"></i>
+                                <h3>Детали нарушения</h3>
+                            </div>
+                        </div>
+
+                        <form id="report-form" onsubmit="submitReport(event)">
+                            <div style="margin-bottom: 16px;">
+                                <label
+                                    style="display: block; margin-bottom: 6px; color: #94a3b8; font-size: 14px;">Нарушение
+                                    Категория</label>
+                                <select style="
+                                            width: 100%;
+                                            padding: 12px 16px;
+                                            background: var(--bg-secondary, #1e293b);
+                                            border: 1px solid rgba(255,255,255,0.1);
+                                            border-radius: 10px;
+                                            color: #f8fafc;
+                                            font-family: 'Outfit', sans-serif;
+                                            font-size: 14px;
+                                        ">
+                                    <option>🗑️ Незаконная свалка</option>
+                                    <option>💨 Загрязнение воздуха / Дым</option>
+                                    <option>🚧 Повреждение дороги</option>
+                                    <option>💧 Загрязнение воды</option>
+                                    <option>🔊 Noise Нарушение</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 16px;">
+                                <label
+                                    style="display: block; margin-bottom: 6px; color: #94a3b8; font-size: 14px;">Описание</label>
+                                <textarea rows="5" placeholder="Опишите нарушение подробно..." style="
+                                            width: 100%;
+                                            padding: 12px 16px;
+                                            background: var(--bg-secondary, #1e293b);
+                                            border: 1px solid rgba(255,255,255,0.1);
+                                            border-radius: 10px;
+                                            color: #f8fafc;
+                                            font-family: 'Outfit', sans-serif;
+                                            font-size: 14px;
+                                            resize: vertical;
+                                        "></textarea>
+                            </div>
+
+                            <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">
+                                <i class="ph-bold ph-paper-plane-right"></i> Submit Report
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 5. Active Citizen: Green Route Section -->
+            <section id="route" class="section">
+                <div class="dashboard-grid" style="grid-template-columns: 1fr; gap: 24px;">
+
+                    <!-- Full Map Card -->
+                    <div class="card" style="padding: 0; overflow: hidden; position: relative;">
+                        <div id="route-map" style="height: 600px; width: 100%; z-index: 1;"></div>
+
+                        <!-- Overlay: Header -->
+                        <div style="position: absolute; top: 24px; left: 24px; z-index: 1000;">
+                            <h1 style="font-size: 28px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.6);">
+                                Эко-Навигатор Зеленого маршрута 🌿</h1>
+                            <p style="color: #94a3b8; text-shadow: 0 1px 5px rgba(0,0,0,0.6);">Найдите самый чистый
+                                маршрут
+                                через город</p>
+                        </div>
+
+                        <!-- Overlay: AQI Savings Card -->
+                        <div style="
+                                    position: absolute;
+                                    bottom: 24px;
+                                    left: 24px;
+                                    right: 24px;
+                                    z-index: 1000;
+                                    background: rgba(15, 23, 42, 0.92);
+                                    backdrop-filter: blur(16px);
+                                    border: 1px solid rgba(255,255,255,0.08);
+                                    border-radius: 16px;
+                                    padding: 24px;
+                                ">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h4 style="margin: 0;"><i class="ph-fill ph-leaf text-green"></i> AQI Savings
+                                </h4>
+                                <span
+                                    style="background: rgba(16,185,129,0.15); color: #10b981; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 600;">-62%
+                                    PM2.5 экспозиции</span>
+                            </div>
+                            <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                                <div
+                                    style="flex: 1; padding: 12px; background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2); border-radius: 10px;">
+                                    <span style="font-size: 13px; color: #94a3b8;">Быстрый маршрут <small>(Высокий
+                                            трафик)</small></span>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+                                        <span style="color: #ef4444; font-weight: 600;"><i
+                                                class="ph-fill ph-warning-circle"></i> 85 AQI</span>
+                                        <span style="color: #94a3b8;"><i class="ph ph-clock"></i> 12 min</span>
+                                    </div>
+                                </div>
+                                <div
+                                    style="flex: 1; padding: 12px; background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2); border-radius: 10px;">
+                                    <span style="font-size: 13px; color: #10b981; font-weight: 500;">Зеленый маршрут
+                                        <small>(Парк)</small></span>
+                                    <div style="display: flex; justify-content: space-between; margin-top: 6px;">
+                                        <span style="color: #10b981; font-weight: 600;"><i
+                                                class="ph-fill ph-check-circle"></i> 32 AQI</span>
+                                        <span style="color: #94a3b8;"><i class="ph ph-clock"></i> 18 min</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="alert('Navigation started!')" style="
+                                        width: 100%;
+                                        padding: 14px;
+                                        background: linear-gradient(135deg, #10b981, #059669);
+                                        border: none;
+                                        border-radius: 12px;
+                                        color: white;
+                                        font-family: 'Outfit', sans-serif;
+                                        font-size: 16px;
+                                        font-weight: 600;
+                                        cursor: pointer;
+                                    ">
+                                <i class="ph-bold ph-navigation-arrow"></i> Start Eco-Navigation
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 6. Active Citizen: AR Street View HUD -->
+            <section id="ar" class="section">
+                <div class="card"
+                    style="padding: 0; overflow: hidden; position: relative; height: 650px; background: #0f172a;">
+                    <!-- Camera Feed (Disabled until simulated) -->
+                    <video id="ar-video-feed" autoplay playsinline style="
+                                width: 100%;
+                                height: 100%;
+                                object-fit: cover;
+                                opacity: 0.3; /* Dimmed initially for style */
+                                transition: opacity 0.5s ease;
+                            "></video>
+
+                    <!-- AR Scanline Effect -->
+                    <div class="hud-scanline"></div>
+
+                    <!-- Title & Controls (Top) -->
+                    <div
+                        style="position: absolute; top: 24px; left: 24px; right: 24px; z-index: 1000; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h1
+                                style="font-size: 24px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.8); margin-bottom: 4px;">
+                                <i class="ph-fill ph-goggles-ar text-blue"></i> Экологический AR Интерфейс
+                            </h1>
+                            <p style="color: #cbd5e1; text-shadow: 0 1px 5px rgba(0,0,0,0.8); font-size: 14px;">
+                                Сканирование местной атмосферы...</p>
+                        </div>
+                        <button id="btn-start-ar" style="
+                                    background: rgba(59, 130, 246, 0.2);
+                                    border: 1px solid rgba(59, 130, 246, 0.5);
+                                    color: #60a5fa;
+                                    padding: 8px 16px;
+                                    border-radius: 8px;
+                                    cursor: pointer;
+                                    font-family: 'Outfit';
+                                    font-weight: 600;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 8px;
+                                    backdrop-filter: blur(4px);
+                                    transition: all 0.2s;
+                                ">
+                            <i class="ph-bold ph-power"></i> Enable HUD Camera
+                        </button>
+                    </div>
+
+                    <!-- Crosshair (Center) -->
+                    <div class="hud-crosshair"></div>
+
+                    <!-- Dynamic AR Data Labels (Overlayed on "buildings/air") -->
+                    <div id="ar-labels-container" style="display: none;">
+                        <!-- Label 1: AQI Floating -->
+                        <div class="hud-label warn" style="position: absolute; top: 30%; left: 20%;">
+                            <div class="hud-title"><i class="ph-fill ph-wind"></i> Окружающий ИКВ</div>
+                            <div class="hud-value">72 <small>Умеренно</small></div>
+                        </div>
+
+                        <!-- Label 2: Noise Pollution -->
+                        <div class="hud-label" style="position: absolute; bottom: 40%; right: 15%;">
+                            <div class="hud-title"><i class="ph-fill ph-speaker-high"></i> Шум трафика</div>
+                            <div class="hud-value" style="color:#10b981;">65 <small>dB</small></div>
+                        </div>
+
+                        <!-- Label 3: Danger Overlay (Simulating looking at a factory) -->
+                        <div class="hud-label danger" style="position: absolute; top: 20%; right: 25%;">
+                            <div class="hud-title"><i class="ph-fill ph-factory"></i> Источник выбросов</div>
+                            <div class="hud-value">Всплеск NO₂ <small>+14%</small></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 7. Community & Infra: Eco-Passport Section -->
+            <section id="passport" class="section">
+                <div style="max-width: 900px; margin: 0 auto;">
+
+                    <!-- Hero Profile Card -->
+                    <div class="passport-hero" style="text-align: center; margin-bottom: 32px; position: relative;">
+                        <img id="passport-avatar" src="https://api.dicebear.com/7.x/avataaars/svg?seed=EcoUser"
+                            alt="Avatar" class="user-avatar"
+                            style="width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--border-color); margin-bottom: 16px; object-fit: cover; background: #fff;">
+                        <h2 id="passport-name" class="current-user-name" style="margin: 0; font-size: 28px;">
+                            Пользователь</h2>
+                        <p id="passport-bio" style="color: #94a3b8; margin: 4px 0 12px; min-height: 20px;">Новый
+                            Эко-гражданин</p>
+
+                        <div
+                            style="display: flex; gap: 12px; justify-content: center; align-items: center; margin-top: 12px;">
+                            <span id="passport-level" class="passport-level"
+                                style="display: inline-block; background: rgba(16,185,129,0.15); color: #10b981; padding: 6px 16px; border-radius: 20px; font-weight: 600; font-size: 14px;">
+                                <i class="ph-fill ph-star"></i> Level 1
+                            </span>
+                            <button id="btn-edit-profile" class="btn-text"
+                                style="font-size: 13px; font-weight: 600; padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.05); color: white;">
+                                <i class="ph-bold ph-pencil-simple"></i> Edit Profile
+                            </button>
+                        </div>
+
+                        <!-- Integrated Edit Profile Panel -->
+                        <div id="edit-profile-panel"
+                            style="display: none; background: rgba(15, 23, 42, 0.6); padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); margin-top: 20px; text-align: left;">
+                            <form id="edit-profile-form" style="display: flex; flex-direction: column; gap: 12px;">
+                                <div class="form-group">
+                                    <label for="edit-avatar"
+                                        style="font-size: 13px; color: #cbd5e1; margin-bottom: 4px; display: block;">Ключ
+                                        аватара <small style="color:#64748b;">(Введите слово для смены
+                                            аватара)</small></label>
+                                    <div class="input-with-icon">
+                                        <i class="ph-fill ph-image text-gray"></i>
+                                        <input type="text" id="edit-avatar" class="form-input"
+                                            placeholder="e.g. Alex, Maria...">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-bio"
+                                        style="font-size: 13px; color: #cbd5e1; margin-bottom: 4px; display: block;">О
+                                        себе</label>
+                                    <textarea id="edit-bio" class="form-input" rows="2"
+                                        placeholder="Расскажите сообществу о своем эко-пути..."></textarea>
+                                </div>
+                                <button type="submit" id="btn-save-profile" class="btn-primary"
+                                    style="padding: 10px; font-size: 14px;">
+                                    <i class="ph-bold ph-floppy-disk"></i> Save Profile
+                                    <div id="save-spinner" class="spinner"
+                                        style="display: none; border-color: transparent white white white;"></div>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Eco-Level Progress -->
+                    <div class="eco-progress-section card" style="padding: 24px; margin-bottom: 24px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <div>
+                                <h3 style="margin: 0; font-size: 18px;"><i class="ph-fill ph-trend-up text-green"></i>
+                                    Eco-Level Progress</h3>
+                                <p style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Следующий ранг: <strong
+                                        style="color: #10b981;">Эко-Патруль Captain</strong></p>
+                            </div>
+                            <span id="passport-progress-pct"
+                                style="font-size: 24px; font-weight: 700; color: #10b981;">0%</span>
+                        </div>
+                        <div class="eco-progress-bar"
+                            style="height: 12px; background: rgba(255,255,255,0.06); border-radius: 8px; overflow: hidden; margin-bottom: 12px;">
+                            <div id="passport-progress-fill" class="eco-progress-fill gradient-green"
+                                style="width: 0%; height: 100%; border-radius: 8px;"></div>
+                        </div>
+                        <p style="color: #64748b; font-size: 12px; margin: 0;">🎁 Unlock 10% Public Transit
+                            Credit at 100%</p>
+                    </div>
+
+                    <!-- Stats Counters -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div class="stat-counter card" style="padding: 20px; text-align: center;">
+                            <span id="stat-co2" class="counter-value"
+                                style="color: #3b82f6; display: block; font-size: 32px; font-weight: 700; margin-bottom: 8px;">0</span>
+                            <span class="counter-label" style="color: #94a3b8; font-size: 13px;"><i
+                                    class="ph-fill ph-cloud-slash"></i> kg Сэкономлено CO₂</span>
+                        </div>
+                        <div class="stat-counter card" style="padding: 20px; text-align: center;">
+                            <span id="stat-reна велосипеде" class="counter-value"
+                                style="color: #10b981; display: block; font-size: 32px; font-weight: 700; margin-bottom: 8px;">0</span>
+                            <span class="counter-label" style="color: #94a3b8; font-size: 13px;"><i
+                                    class="ph-fill ph-recycle"></i> кг Переработано</span>
+                        </div>
+                        <div class="stat-counter card" style="padding: 20px; text-align: center;">
+                            <span id="stat-reports" class="counter-value"
+                                style="color: #f59e0b; display: block; font-size: 32px; font-weight: 700; margin-bottom: 8px;">0</span>
+                            <span class="counter-label" style="color: #94a3b8; font-size: 13px;"><i
+                                    class="ph-fill ph-camera-plus"></i> Отчетов Отправлено</span>
+                        </div>
+                        <div class="stat-counter card" style="padding: 20px; text-align: center;">
+                            <span id="stat-greenkm" class="counter-value"
+                                style="color: #a78bfa; display: block; font-size: 32px; font-weight: 700; margin-bottom: 8px;">0</span>
+                            <span class="counter-label" style="color: #94a3b8; font-size: 13px;"><i
+                                    class="ph-fill ph-person-simple-walk"></i> Зеленых км</span>
+                        </div>
+                    </div>
+
+                    <!-- Badges Grid -->
+                    <div class="card" style="padding: 24px;">
+                        <div class="card-header" style="margin-bottom: 20px;">
+                            <div class="title-with-icon">
+                                <i class="ph-fill ph-trophy text-green"></i>
+                                <h3>Ваши достижения</h3>
+                            </div>
+                        </div>
+                        <div class="badge-grid"
+                            style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                            <div id="badge-velo" class="badge-card locked"
+                                style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s;">
+                                <span class="badge-emoji" style="font-size: 40px; margin-bottom: 12px;">🚴</span>
+                                <span class="badge-name"
+                                    style="font-weight: 600; margin-bottom: 4px;">Вело-Ниндзя</span>
+                                <span class="badge-desc" style="font-size: 12px; color: #64748b;">100+ зеленых км
+                                    на велосипеде</span>
+                            </div>
+                            <div id="badge-sorting" class="badge-card locked"
+                                style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s;">
+                                <span class="badge-emoji" style="font-size: 40px; margin-bottom: 12px;">♻️</span>
+                                <span class="badge-name" style="font-weight: 600; margin-bottom: 4px;">Sorting
+                                    Master</span>
+                                <span class="badge-desc" style="font-size: 12px; color: #64748b;">30+ кг
+                                    отсортировано</span>
+                            </div>
+                            <div id="badge-eagle" class="badge-card locked"
+                                style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s;">
+                                <span class="badge-emoji" style="font-size: 40px; margin-bottom: 12px;">📸</span>
+                                <span class="badge-name" style="font-weight: 600; margin-bottom: 4px;">Орлиный
+                                    Глаз</span>
+                                <span class="badge-desc" style="font-size: 12px; color: #64748b;">5+ нарушений
+                                    зафиксировано</span>
+                            </div>
+                            <div id="badge-tree" class="badge-card locked"
+                                style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.05); padding: 16px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; text-align: center; transition: all 0.3s;">
+                                <span class="badge-emoji" style="font-size: 40px; margin-bottom: 12px;">🌲</span>
+                                <span class="badge-name" style="font-weight: 600; margin-bottom: 4px;">Защитник
+                                    Деревьев</span>
+                                <span class="badge-desc" style="font-size: 12px; color: #64748b;">Посажено 5
+                                    деревьев</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- 8. Community & Infra: Smart Bins Section -->
+            <section id="bins" class="section">
+                <header class="top-header" style="margin-bottom: 24px;">
+                    <div class="welcome-text">
+                        <h1>Мониторинг умных урн 🗑️</h1>
+                        <p>Урны с IoT по всему городу. Запрашивайте вывоз, когда урны почти полны.
+                        </p>
+                    </div>
+                </header>
+
+                <div style="max-width: 800px;" id="bins-container">
+                    <!-- Bins are generated by JS -->
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- END app-container -->
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="mobile-bottom-nav">
+        <a href="#" class="mobile-nav-item active" onclick="showSection('dashboard'); return false;">
+            <i class="ph ph-house"></i>
+            <span>Главная</span>
+        </a>
+        <a href="#" class="mobile-nav-item" onclick="showSection('passport'); return false;">
+            <i class="ph ph-user"></i>
+            <span>Паспорт</span>
+        </a>
+        <a href="#" class="mobile-nav-item" onclick="showSection('reports'); return false;">
+            <i class="ph ph-warning-circle"></i>
+            <span>Репорт</span>
+        </a>
+        <a href="#" class="mobile-nav-item" onclick="showSection('route'); return false;">
+            <i class="ph ph-map-pin"></i>
+            <span>Карта</span>
+        </a>
+    </nav>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

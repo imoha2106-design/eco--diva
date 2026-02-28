@@ -1,0 +1,17 @@
+{
+  "name": "ECODIVA Петропавловск",
+  "short_name": "ECODIVA",
+  "description": "Комплексное приложение для мониторинга умного эко-города",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "./image_abcf02.jpg",
+      "sizes": "192x192 512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}
