@@ -29,9 +29,15 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
     <!-- EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+    <!-- A-Frame & AR.js -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar-nft.js"></script>
 
     <!-- CSS -->
     <link rel="stylesheet" href="styles.css">
@@ -179,8 +185,8 @@
                     Report Нарушение</a>
                 <a href="#" class="nav-item" onclick="showSection('route')"><i class="ph ph-person-simple-walk"></i>
                     Green Route</a>
-                <a href="#" class="nav-item" onclick="showSection('ar')"><i class="ph ph-goggles-ar"></i> AR
-                    Street View</a>
+                <a href="#" class="nav-item" onclick="showSection('ar-scanner')"><i class="ph ph-scan"></i> AR
+                    Эко-Сканер</a>
 
                 <p class="nav-section-title">Сообщество и инфраструктура</p>
                 <a href="#" class="nav-item" onclick="showSection('passport')"><i class="ph ph-medal"></i>
@@ -584,7 +590,7 @@
                                 <label
                                     style="display: block; margin-bottom: 6px; color: #94a3b8; font-size: 14px;">Нарушение
                                     Категория</label>
-                                <select style="
+                                <select id="report-violation-type" style="
                                             width: 100%;
                                             padding: 12px 16px;
                                             background: var(--bg-secondary, #1e293b);
@@ -605,7 +611,8 @@
                             <div style="margin-bottom: 16px;">
                                 <label
                                     style="display: block; margin-bottom: 6px; color: #94a3b8; font-size: 14px;">Описание</label>
-                                <textarea rows="5" placeholder="Опишите нарушение подробно..." style="
+                                <textarea id="report-description" rows="5" placeholder="Опишите нарушение подробно..."
+                                    style="
                                             width: 100%;
                                             padding: 12px 16px;
                                             background: var(--bg-secondary, #1e293b);
@@ -625,6 +632,21 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Report Success Toast -->
+            <div id="report-toast" style="
+                position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%) translateY(30px);
+                background: linear-gradient(135deg, #059669, #10b981);
+                color: white; padding: 16px 28px; border-radius: 16px;
+                font-family: 'Outfit', sans-serif; font-size: 15px; font-weight: 600;
+                box-shadow: 0 8px 32px rgba(16,185,129,0.4);
+                z-index: 9999; opacity: 0; pointer-events: none;
+                transition: opacity 0.4s ease, transform 0.4s ease;
+                display: flex; align-items: center; gap: 10px; max-width: 90vw; text-align: center;
+            ">
+                <i class="ph-fill ph-check-circle" style="font-size: 22px;"></i>
+                <span></span>
+            </div>
 
             <!-- 5. Active Citizen: Green Route Section -->
             <section id="route" class="section">
@@ -706,75 +728,152 @@
                 </div>
             </section>
 
-            <!-- 6. Active Citizen: AR Street View HUD -->
-            <section id="ar" class="section">
-                <div class="card"
-                    style="padding: 0; overflow: hidden; position: relative; height: 650px; background: #0f172a;">
-                    <!-- Camera Feed (Disabled until simulated) -->
-                    <video id="ar-video-feed" autoplay playsinline style="
-                                width: 100%;
-                                height: 100%;
-                                object-fit: cover;
-                                opacity: 0.3; /* Dimmed initially for style */
-                                transition: opacity 0.5s ease;
-                            "></video>
+            <!-- 6. AR Eco-Scanner Section -->
+            <section id="ar-scanner" class="section">
+                <div
+                    style="position: relative; width: 100%; height: calc(100vh - 80px); background: #0f172a; border-radius: 16px; overflow: hidden;">
 
-                    <!-- AR Scanline Effect -->
-                    <div class="hud-scanline"></div>
+                    <!-- A-Frame Scene Container (populated by ar-logic.js) -->
+                    <div id="ar-scene-container" style="position: absolute; inset: 0; z-index: 1;"></div>
 
-                    <!-- Title & Controls (Top) -->
-                    <div
-                        style="position: absolute; top: 24px; left: 24px; right: 24px; z-index: 1000; display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div>
-                            <h1
-                                style="font-size: 24px; font-weight: 700; text-shadow: 0 2px 10px rgba(0,0,0,0.8); margin-bottom: 4px;">
-                                <i class="ph-fill ph-goggles-ar text-blue"></i> Экологический AR Интерфейс
-                            </h1>
-                            <p style="color: #cbd5e1; text-shadow: 0 1px 5px rgba(0,0,0,0.8); font-size: 14px;">
-                                Сканирование местной атмосферы...</p>
+                    <!-- AR HUD Overlay -->
+                    <div id="ar-hud-overlay"
+                        style="display: none; position: absolute; inset: 0; z-index: 100; pointer-events: none;">
+
+                        <!-- Top Bar -->
+                        <div
+                            style="pointer-events: auto; position: absolute; top: 0; left: 0; right: 0; padding: 20px 24px; background: linear-gradient(180deg, rgba(15,23,42,0.85) 0%, transparent 100%); display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <h2
+                                    style="margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc; text-shadow: 0 2px 8px rgba(0,0,0,0.6); font-family: 'Outfit', sans-serif;">
+                                    <i class="ph-fill ph-scan" style="color: #10b981;"></i> AR Эко-Сканер
+                                </h2>
+                                <p
+                                    style="margin: 4px 0 0; color: #94a3b8; font-size: 13px; font-family: 'Outfit', sans-serif; text-shadow: 0 1px 4px rgba(0,0,0,0.6);">
+                                    Наведите камеру на окружающую среду
+                                </p>
+                            </div>
+                            <div id="ar-aqi-badge" style="
+                                background: rgba(16,185,129,0.15); color: #10b981;
+                                padding: 8px 16px; border-radius: 12px;
+                                font-size: 14px; font-weight: 700;
+                                font-family: 'Outfit', sans-serif;
+                                border: 1px solid rgba(16,185,129,0.3);
+                                backdrop-filter: blur(8px);
+                            ">-- AQI</div>
                         </div>
-                        <button id="btn-start-ar" style="
-                                    background: rgba(59, 130, 246, 0.2);
-                                    border: 1px solid rgba(59, 130, 246, 0.5);
-                                    color: #60a5fa;
-                                    padding: 8px 16px;
-                                    border-radius: 8px;
-                                    cursor: pointer;
-                                    font-family: 'Outfit';
-                                    font-weight: 600;
-                                    display: flex;
-                                    align-items: center;
-                                    gap: 8px;
-                                    backdrop-filter: blur(4px);
-                                    transition: all 0.2s;
-                                ">
-                            <i class="ph-bold ph-power"></i> Enable HUD Camera
+
+                        <!-- Crosshair -->
+                        <div
+                            style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border: 2px solid rgba(16,185,129,0.5); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                            <div
+                                style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; box-shadow: 0 0 12px #10b981;">
+                            </div>
+                        </div>
+
+                        <!-- Bottom Controls -->
+                        <div
+                            style="pointer-events: auto; position: absolute; bottom: 0; left: 0; right: 0; padding: 24px; background: linear-gradient(0deg, rgba(15,23,42,0.9) 0%, transparent 100%); display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                            <button id="ar-scan-btn" onclick="scanEnvironment()" style="
+                                width: 100%; max-width: 360px; padding: 16px;
+                                background: linear-gradient(135deg, #3b82f6, #2563eb);
+                                border: none; border-radius: 14px;
+                                color: white; font-family: 'Outfit', sans-serif;
+                                font-size: 16px; font-weight: 700;
+                                cursor: pointer; transition: all 0.3s;
+                                display: flex; align-items: center; justify-content: center; gap: 8px;
+                                box-shadow: 0 4px 20px rgba(59,130,246,0.4);
+                            ">
+                                <i class="ph-bold ph-scan"></i> Сканировать среду
+                            </button>
+                            <button onclick="stopARScanner(); showSection('dashboard');" style="
+                                padding: 10px 24px;
+                                background: rgba(239,68,68,0.15);
+                                border: 1px solid rgba(239,68,68,0.3);
+                                border-radius: 10px;
+                                color: #ef4444; font-family: 'Outfit', sans-serif;
+                                font-size: 14px; font-weight: 600;
+                                cursor: pointer; transition: all 0.2s;
+                            ">
+                                <i class="ph-bold ph-x"></i> Закрыть AR
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- AR Launch Screen (before camera starts) -->
+                    <div id="ar-launch-screen" style="
+                        position: absolute; inset: 0; z-index: 50;
+                        background: #0f172a;
+                        display: flex; flex-direction: column;
+                        align-items: center; justify-content: center;
+                        text-align: center; padding: 32px;
+                    ">
+                        <div
+                            style="width: 80px; height: 80px; background: rgba(16,185,129,0.12); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin-bottom: 24px;">
+                            <i class="ph-fill ph-scan" style="font-size: 40px; color: #10b981;"></i>
+                        </div>
+                        <h2
+                            style="color: #f8fafc; font-size: 24px; font-weight: 700; margin: 0 0 8px; font-family: 'Outfit', sans-serif;">
+                            AR Эко-Сканер</h2>
+                        <p
+                            style="color: #94a3b8; font-size: 15px; max-width: 320px; margin: 0 0 32px; font-family: 'Outfit', sans-serif; line-height: 1.5;">
+                            Просматривайте данные о качестве воздуха в реальном мире через камеру вашего устройства
+                        </p>
+                        <div
+                            style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; margin-bottom: 32px;">
+                            <div
+                                style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.15); padding: 12px 16px; border-radius: 12px; text-align: center; min-width: 100px;">
+                                <i class="ph-fill ph-map-pin" style="color: #3b82f6; font-size: 20px;"></i>
+                                <p
+                                    style="color: #94a3b8; font-size: 12px; margin: 6px 0 0; font-family: 'Outfit', sans-serif;">
+                                    GPS-метки</p>
+                            </div>
+                            <div
+                                style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.15); padding: 12px 16px; border-radius: 12px; text-align: center; min-width: 100px;">
+                                <i class="ph-fill ph-wind" style="color: #10b981; font-size: 20px;"></i>
+                                <p
+                                    style="color: #94a3b8; font-size: 12px; margin: 6px 0 0; font-family: 'Outfit', sans-serif;">
+                                    Живой AQI</p>
+                            </div>
+                            <div
+                                style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.15); padding: 12px 16px; border-radius: 12px; text-align: center; min-width: 100px;">
+                                <i class="ph-fill ph-medal" style="color: #f59e0b; font-size: 20px;"></i>
+                                <p
+                                    style="color: #94a3b8; font-size: 12px; margin: 6px 0 0; font-family: 'Outfit', sans-serif;">
+                                    +10 XP</p>
+                            </div>
+                        </div>
+                        <button
+                            onclick="document.getElementById('ar-launch-screen').style.display='none'; startARScanner();"
+                            style="
+                            padding: 16px 40px;
+                            background: linear-gradient(135deg, #10b981, #059669);
+                            border: none; border-radius: 14px;
+                            color: white; font-family: 'Outfit', sans-serif;
+                            font-size: 16px; font-weight: 700;
+                            cursor: pointer; transition: all 0.3s;
+                            display: flex; align-items: center; gap: 10px;
+                            box-shadow: 0 4px 24px rgba(16,185,129,0.4);
+                        ">
+                            <i class="ph-bold ph-camera"></i> Запустить камеру
                         </button>
                     </div>
 
-                    <!-- Crosshair (Center) -->
-                    <div class="hud-crosshair"></div>
-
-                    <!-- Dynamic AR Data Labels (Overlayed on "buildings/air") -->
-                    <div id="ar-labels-container" style="display: none;">
-                        <!-- Label 1: AQI Floating -->
-                        <div class="hud-label warn" style="position: absolute; top: 30%; left: 20%;">
-                            <div class="hud-title"><i class="ph-fill ph-wind"></i> Окружающий ИКВ</div>
-                            <div class="hud-value">72 <small>Умеренно</small></div>
-                        </div>
-
-                        <!-- Label 2: Noise Pollution -->
-                        <div class="hud-label" style="position: absolute; bottom: 40%; right: 15%;">
-                            <div class="hud-title"><i class="ph-fill ph-speaker-high"></i> Шум трафика</div>
-                            <div class="hud-value" style="color:#10b981;">65 <small>dB</small></div>
-                        </div>
-
-                        <!-- Label 3: Danger Overlay (Simulating looking at a factory) -->
-                        <div class="hud-label danger" style="position: absolute; top: 20%; right: 25%;">
-                            <div class="hud-title"><i class="ph-fill ph-factory"></i> Источник выбросов</div>
-                            <div class="hud-value">Всплеск NO₂ <small>+14%</small></div>
-                        </div>
+                    <!-- AR Toast -->
+                    <div id="ar-toast" style="
+                        position: absolute; bottom: 140px; left: 50%; transform: translateX(-50%) translateY(30px);
+                        background: linear-gradient(135deg, #059669, #10b981);
+                        color: white; padding: 14px 24px; border-radius: 14px;
+                        font-family: 'Outfit', sans-serif; font-size: 14px; font-weight: 600;
+                        box-shadow: 0 8px 32px rgba(16,185,129,0.4);
+                        z-index: 200; opacity: 0; pointer-events: none;
+                        transition: opacity 0.4s ease, transform 0.4s ease;
+                        display: flex; align-items: center; gap: 8px;
+                    ">
+                        <i class="ph-fill ph-check-circle" style="font-size: 20px;"></i>
+                        <span></span>
                     </div>
+
                 </div>
             </section>
 
@@ -972,9 +1071,14 @@
             <i class="ph ph-map-pin"></i>
             <span>Карта</span>
         </a>
+        <a href="#" class="mobile-nav-item" onclick="showSection('ar-scanner'); return false;">
+            <i class="ph ph-scan"></i>
+            <span>AR</span>
+        </a>
     </nav>
 
     <script src="script.js"></script>
+    <script src="ar-logic.js"></script>
 </body>
 
 </html>

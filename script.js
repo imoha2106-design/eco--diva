@@ -18,6 +18,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+const storage = firebase.storage();
 
 // --- EMAILJS CONFIGURATION ---
 (function () {
@@ -46,8 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. Initialize Eco-Sim Grid (main page version)
     initEcoSimGridMain();
 
-    // 7. Setup AR Camera
-    setupARCamera();
+    // 7. AR is now handled by ar-logic.js
 
     // 8. Setup Leaflet Map observer for route section
     setupRouteMapObserver();
@@ -716,41 +716,7 @@ function simulateCapture() {
 }
 window.simulateCapture = simulateCapture;
 
-function submitReport(event) {
-    event.preventDefault();
-    const form = document.getElementById('report-form');
-    if (!form) return;
-
-    addXP(25);
-
-    // Show success feedback
-    const btn = form.querySelector('button[type="submit"]');
-    if (btn) {
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="ph-fill ph-check-circle"></i> Отчет отправлен! +25 Опыта';
-        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        btn.disabled = true;
-
-        setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.style.background = '';
-            btn.disabled = false;
-            form.reset();
-            // Reset camera area
-            const area = document.getElementById('camera-area');
-            if (area) {
-                area.style.borderColor = '';
-                area.style.background = '';
-                area.innerHTML = `
-                    <i class="ph ph-camera-plus" style="font-size: 56px; color: #64748b;"></i>
-                    <p style="color: #64748b; margin-top: 16px; font-size: 16px;">Нажмите, чтобы сделать фото</p>
-                    <small style="color: #475569;">AI will auto-classify: Trash, Smoke, or Road violation</small>
-                `;
-            }
-        }, 2500);
-    }
-}
-window.submitReport = submitReport;
+// (Old duplicate submitReport removed — active version is below near line 1490)
 
 /* =========================================
    7. XP & Achievements System
@@ -1487,39 +1453,105 @@ window.syncAllAvatars = function (seed) {
     });
 };
 
-window.submitReport = function (e) {
+window.submitReport = async function (e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="ph-bold ph-spinner ph-spin"></i> Обработка ИИ...';
     btn.disabled = true;
 
-    setTimeout(() => {
+    const user = auth.currentUser;
+    if (!user) {
+        alert('Пожалуйста, войдите в аккаунт, чтобы отправить жалобу.');
         btn.innerHTML = originalText;
         btn.disabled = false;
+        return;
+    }
 
+    try {
+        // 1. Read form values
+        const violationType = document.getElementById('report-violation-type')?.value || 'Не указано';
+        const description = document.getElementById('report-description')?.value || '';
+        const photoInput = document.getElementById('report-photo');
+        const photoFile = photoInput?.files?.[0] || null;
+
+        // 2. Get userName from profile
+        const userName = (currentUserDoc && currentUserDoc.name) || user.displayName || 'Аноним';
+
+        // 3. Upload photo to Firebase Storage (if present)
+        let imageUrl = '';
+        if (photoFile) {
+            const filePath = `reports/${user.uid}/${Date.now()}_${photoFile.name}`;
+            const snapshot = await storage.ref(filePath).put(photoFile);
+            imageUrl = await snapshot.ref.getDownloadURL();
+        }
+
+        // 4. Simulate AI Verdict based on violation type
+        const aiVerdicts = {
+            '🗑️ Незаконная свалка': 'Обнаружен мусор — уверенность 94%',
+            '💨 Загрязнение воздуха / Дым': 'Обнаружен дым — уверенность 89%',
+            '🚧 Повреждение дороги': 'Повреждение дорожного покрытия — уверенность 91%',
+            '💧 Загрязнение воды': 'Загрязнение водоёма — уверенность 87%',
+            '🔊 Noise Нарушение': 'Шумовое нарушение — уверенность 85%'
+        };
+        const aiVerdict = aiVerdicts[violationType] || 'Нарушение зафиксировано ИИ';
+
+        // 5. Save report document to Firestore
+        await db.collection('reports').add({
+            userId: user.uid,
+            userName: userName,
+            violationType: violationType,
+            description: description,
+            imageUrl: imageUrl,
+            aiVerdict: aiVerdict,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 6. Update user's Eco-Passport: +20 XP, +1 reportsSent
+        await db.collection('users').doc(user.uid).update({
+            xp: firebase.firestore.FieldValue.increment(20),
+            reportsSent: firebase.firestore.FieldValue.increment(1)
+        });
+
+        // 7. Update local state and refresh UI
+        if (currentUserDoc) {
+            currentUserDoc.xp = (currentUserDoc.xp || 0) + 20;
+            currentUserDoc.reportsSent = (currentUserDoc.reportsSent || 0) + 1;
+            updatePassportProgress();
+        }
+        fetchUserData(user);
+
+        // 8. Show success toast in Russian
+        showReportToast('Ваша жалоба принята и сохранена в базе! +20 XP начислено');
+
+        // 9. Reset form and photo preview
+        e.target.reset();
         const preview = document.getElementById('photo-preview');
         const placeholder = document.getElementById('camera-placeholder');
         if (preview) preview.style.display = 'none';
         if (placeholder) placeholder.style.display = 'flex';
-        e.target.reset();
 
-        const user = auth.currentUser;
-        if (user && currentUserDoc) {
-            const newXp = (currentUserDoc.xp || 0) + 20;
-            const newReports = (currentUserDoc.reportsSent || 0) + 1;
-            db.collection('users').doc(user.uid).update({
-                xp: newXp,
-                reportsSent: newReports
-            }).then(() => {
-                alert("Проверено ИИ: Нарушение зафиксировано! +20 Опыта начислено.");
-                fetchUserData(user); // refresh UI
-            }).catch(console.error);
-        } else {
-            alert("Проверено ИИ: Нарушение зафиксировано! (Войдите, чтобы увидеть опыт)");
-        }
-    }, 2000);
+    } catch (err) {
+        console.error('Error submitting report:', err);
+        alert('Ошибка при отправке жалобы. Попробуйте снова.');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 };
+
+// Helper: Show an animated toast notification
+function showReportToast(message) {
+    const toast = document.getElementById('report-toast');
+    if (!toast) return;
+    toast.querySelector('span').textContent = message;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(30px)';
+    }, 4000);
+}
 
 /* =========================================
    PWA & Service Worker Logic

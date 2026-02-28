@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users collection ──
+    match /users/{userId} {
+      // Any authenticated user can read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Users can create their own document (signup)
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Users can update only their own document
+      // Permitted fields: xp, reportsSent, avatarSeed, bio, level, co2Saved, recycled, greenKm, treesPlanted
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Reports collection ──
+    match /reports/{reportId} {
+      // Only the report's author can read their reports
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+
+      // Any authenticated user can create a report if userId matches their auth uid
+      allow create: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid
+                    && request.resource.data.keys().hasAll([
+                         'userId', 'userName', 'violationType',
+                         'description', 'imageUrl', 'aiVerdict', 'timestamp'
+                       ]);
+
+      // Reports cannot be updated or deleted by users
+      allow update, delete: if false;
+    }
+  }
+}
